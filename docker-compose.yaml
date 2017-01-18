@@ -1,0 +1,5 @@
+pgu:
+  build: .
+  dockerfile: Dockerfile-i386
+  container_name: yandex-traffic
+  restart: always
