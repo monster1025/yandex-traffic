@@ -1,5 +1,7 @@
-pgu:
+yandex-traffic:
   build: .
   dockerfile: Dockerfile-i386
   container_name: yandex-traffic
+  ports:
+    - "8234:5000"
   restart: always
