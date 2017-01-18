@@ -1,7 +1,7 @@
 # yandex-traffic
 Rest api for yandex traffic (time in way between points in traffic conditions)
 
-## Api examples:
+### Api examples:
 - /report/text/55.67,37.76;55.79,37.66 - get text report
 - /report/json/55.67,37.76;55.79,37.66 - get json report
 
