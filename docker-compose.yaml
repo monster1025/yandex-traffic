@@ -1,7 +1,8 @@
 yandex-traffic:
   build: .
   dockerfile: Dockerfile-i386
+  # image: monster1025/yandex-traffic:i386
   container_name: yandex-traffic
-  ports:
-    - "8234:5000"
+  volumes:
+    - "./config:/app/config"
   restart: always

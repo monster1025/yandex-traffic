@@ -1,52 +1,57 @@
-#flask
-from flask import Flask, request, jsonify
-from traffic import Trafic
+import logging
+import datetime
+import calendar
+import time
+import threading
 
-app = Flask(__name__)
+from traffic import Trafic
+import yamlparser
+import mqtt
+
+logging.basicConfig(level=logging.DEBUG)
+_LOGGER = logging.getLogger(__name__)
+
 traffic = Trafic()
 
-@app.route('/report/text/<string:from_lat>,<string:from_lng>;<string:to_lat>,<string:to_lng>', methods=['GET'])
-def get_text_report(from_lat, from_lng, to_lat, to_lng):
-	report = traffic.get_route_as_text(from_lat, from_lng, to_lat, to_lng)
-	return report
+def process_traffic(client, home_latitude, home_longitude, work_latitude, work_longitude, interval):
+	while True:
+		try:
+			home_to_work=traffic.get_route_as_json(home_latitude, home_longitude, work_latitude, work_longitude)
+			work_to_home=traffic.get_route_as_json(work_latitude, work_longitude, home_latitude, home_longitude)
+			data = dict({
+				"home_to_work_time": home_to_work['min_duration_value'], 
+				"home_to_work_text": home_to_work['reports'][0], 
+				"work_to_home_time": work_to_home['min_duration_value'],
+				"work_to_home_text": work_to_home['reports'][0]
+			})
+			mqttclient.publish("yandex", "traffic", data, False)
+			time.sleep(interval)
+		except Exception as e:
+			_LOGGER.error('Error while retrieving data from mos.ru: ', str(e))
 
-@app.route('/report/json/<float:from_lat>,<float:from_lng>;<float:to_lat>,<float:to_lng>', methods=['GET'])
-def get_json_report(from_lat, from_lng, to_lat, to_lng):
-	report = traffic.get_route_as_json(from_lat, from_lng, to_lat, to_lng)
-	return jsonify(report)
+if __name__ == "__main__":
+	global mqttclient
+	_LOGGER.info("Loading config file...")
+	config=yamlparser.load_yaml('config/config.yaml')
 
-@app.route('/report/text/', methods=['POST'])
-def post_text_report():
-	json = request.get_json()
-	from_lat = json.get("from_lat", 0)
-	from_lng = json.get("from_lng", 0)
-	to_lat = json.get("to_lat", 0)
-	to_lng = json.get("to_lng", 0)
-	report = traffic.get_route_as_json(from_lat, from_lng, to_lat, to_lng)
-	return report
+	_LOGGER.info("Init mqtt client.")
+	client = mqtt.Mqtt(config)
+	client.connect()
+	mqttclient = client
 
-@app.route('/report/json/', methods=['POST'])
-def post_json_report():
-	json = request.get_json()
-	from_lat = json.get("from_lat", 0)
-	from_lng = json.get("from_lng", 0)
-	to_lat = json.get("to_lat", 0)
-	to_lng = json.get("to_lng", 0)
-	report = traffic.get_route_as_json(from_lat, from_lng, to_lat, to_lng)
-	return jsonify(report)
- 
+	yandex = config.get("yandex", None)
+	if yandex == None:
+		_LOGGER.error("yandex not defined in config")
 
-@app.route('/')
-def index():
-    return '''
-    <h1>Yandex traffic reports</h1>
-    <pre>GET /report/text/55.67,37.76;55.79,37.66 - get text report</pre>
-    <pre>GET /report/json/55.67,37.76;55.79,37.66 - get json report</pre>
-    <pre>POST /report/text/ - get text report</pre>
-    <pre>POST /report/json/ - get json report</pre>
-    <pre>json exmple:</pre>
-    <pre>{"from_lat":55.67,"from_lng":37.76, "to_lat":55.79, "to_lng":37.66}</pre>
-    '''
+	home_latitude = yandex.get("home_latitude", 0)
+	home_longitude = yandex.get("home_longitude", 0)
+	work_latitude = yandex.get("work_latitude", 0)
+	work_longitude = yandex.get("work_longitude", 0)
+	interval = yandex.get("interval", 60)
 
-if __name__ == '__main__':
-	app.run(debug=True,host='0.0.0.0')
+	t1 = threading.Thread(target=process_traffic, args=[client, home_latitude, home_longitude, work_latitude, work_longitude, interval])
+	t1.daemon = True
+	t1.start()
+
+	while True:
+		time.sleep(10)
