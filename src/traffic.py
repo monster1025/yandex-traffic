@@ -3,6 +3,9 @@ import codecs
 import re
 import json
 import sys
+import logging
+
+_LOGGER = logging.getLogger(__name__)
 
 class Trafic:
 	def __init__(self, lang = "ru_RU"):
@@ -66,7 +69,12 @@ class Trafic:
 		path = str(from_lng) + "," + str(from_lat) + "~" + str(to_lng) + "," + str(to_lat)
 		payload = {'lang': self.lang, 'token': self.token, 'rtm':'atm', 'results':results, 'rll': path}
 		resp = self.session.get(routeURL, params=payload)
-		return resp.json()
+		json = resp.json()
+
+		if (json is None or json['data'] is None):
+			_LOGGER.error("Invalid JSON recieved from yandex: ", resp.text)
+
+		return json
 
 	def _parse_route_json(self, js):
 		routes = []

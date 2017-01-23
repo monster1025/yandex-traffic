@@ -1,3 +1,4 @@
+#encoding=utf-8
 import logging
 import datetime
 import calendar
@@ -25,9 +26,9 @@ def process_traffic(client, home_latitude, home_longitude, work_latitude, work_l
 				"work_to_home_text": work_to_home['reports'][0]
 			})
 			mqttclient.publish("yandex", "traffic", data, False)
-			time.sleep(interval)
 		except Exception as e:
-			_LOGGER.error('Error while retrieving data from mos.ru: ', str(e))
+			_LOGGER.error('Error while retrieving data from yandex: ', str(e))
+		time.sleep(interval)
 
 if __name__ == "__main__":
 	global mqttclient
